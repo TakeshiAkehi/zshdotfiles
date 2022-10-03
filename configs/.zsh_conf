@@ -16,3 +16,6 @@ setopt inc_append_history      # 実行時に履歴をファイルにに追加�
 
 ; zle -N fzy-history-widget
 ; bindkey '^R'  fzy-history-widget
+
+## remove ansi escapes
+alias noansi="sed -e $'s/\x1b\[[0-9;]*m//g'"
