@@ -11,7 +11,7 @@ fi
 if [ ! -e ${CDIR}/zsh-compnetions-init.executed ]; then
     # 初回設定
     rm -f ~/.zcompdump; compinit
-    touch "${CDIR}/zsh-compnetions-init.executed "
+    touch "${CDIR}/zsh-compnetions-init.executed"
 fi
 
 # 直近のコマンド履歴から薄文字で候補表示

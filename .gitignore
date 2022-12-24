@@ -1,2 +1,5 @@
 bkup/*
 !.gitkeep
+
+*.executed
+addon/zsh-compnetions-init.executed 
