@@ -64,3 +64,12 @@ bash zshdotfiles/2_link_dotfiles.bash
 bash zshdotfiles/3_link_dotrc.bash
 exec /bin/zsh -l
 ```
+
+=== uninstall
+
+* 1_install.bash
+** -> aptやbrewで自力アンイストール
+* 2_link_dotfiles.bash
+** -> bkupに元々$HOMEにあったファイルがあるので元の場所に戻す
+* 3_link_dotrc.bash
+** -> ~/.zshrcの`source <このリポジトリのディレクトリ>/dotrc.zsh`の記述を消す
