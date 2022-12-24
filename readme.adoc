@@ -1,0 +1,22 @@
+
+== demo
+
+```
+make demo
+make zsh
+```
+
+== debug
+```
+make image
+make bash
+```
+
+コンテナ内で
+```
+bash dotfiles/install.bash
+```
+
+== !
+dotfiles : installしたソフトの設定を~/に置いとく系
+addon : sourceすることで端末に機能を追加する系
