@@ -14,4 +14,5 @@ else
         echo "no supported package manager found"
         exit
     fi
+    touch ${HOME}/.zshrc
 fi

@@ -2,6 +2,7 @@ CDIR=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 WDIR=${CDIR}/dotfiles
 BDIR=${CDIR}/bkup
 
+# dotfiles配下のファイルのシンボリックリンクを$HOMEに作成
 DOT_FILES=(.vimrc)
 for file in ${DOT_FILES[@]}
 do

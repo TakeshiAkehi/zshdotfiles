@@ -1,0 +1,13 @@
+# FROM zlskidmore/ubuntu-zsh
+
+FROM amd64/ubuntu:20.04
+WORKDIR /root
+
+RUN apt-get update &&\
+    apt-get install -y git &&\
+    git clone https://github.com/TakeshiAkehi/zshdotfiles.git
+
+# RUN /bin/bash zshdotfiles/1_install.bash &&\
+#     /bin/bash zshdotfiles/2_link_dotfiles.bash &&\
+#     /bin/bash zshdotfiles/3_link_dotrc.bash
+

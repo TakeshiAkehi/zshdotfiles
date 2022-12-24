@@ -1,4 +1,6 @@
 
+== 必須要件
+
 == demo
 
 ```
@@ -11,12 +13,14 @@ make zsh
 make image
 make bash
 ```
+以降install手順に従う
 
-コンテナ内で
+== install
+
 ```
 bash dotfiles/install.bash
 ```
 
-== !
+== install後
 dotfiles : installしたソフトの設定を~/に置いとく系
 addon : sourceすることで端末に機能を追加する系
