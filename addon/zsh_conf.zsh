@@ -1,4 +1,4 @@
-# vim入力モード
+# shellの操作モードをvimモードに
 set -o vi
 
 # widgetのおまじない？
@@ -9,7 +9,6 @@ compinit -u
 HISTFILE=~/.zsh_history
 HISTSIZE=1000000
 SAVEHIST=1000000
-
 export HISTSIZE=1000
 export SAVEHIST=10000
 setopt share_history           # 履歴を他のシェルとリアルタイム共有する
@@ -22,5 +21,6 @@ setopt inc_append_history      # 実行時に履歴をファイルにに追加�
 # お手軽エイリアス
 ## .zshrc
 alias zshrc="vim ${HOME}/.zshrc; source ${HOME}/.zshrc"
-## remove ansi escapes
+## remove ansi escapes (色付き文字の出力から文字だけフィルタ)
+### 例: cat test.txt | noansi 
 alias noansi="sed -e $'s/\x1b\[[0-9;]*m//g'"

@@ -1,0 +1,26 @@
+[profile akehi]
+region = us-west-2
+output = json
+
+[profile dnet-dev]
+region = us-west-2
+output = json
+
+[profile common]
+region = us-west-2
+output = json
+
+[profile mapper-prod]
+region = ap-northeast-1
+output = json
+
+[profile kddi-dev]
+region = us-west-2
+output = json
+
+[profile terra-inspection-dev]
+region = us-west-2
+output = json
+
+[profile default]
+region = us-west-2

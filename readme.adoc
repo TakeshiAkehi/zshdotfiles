@@ -24,3 +24,6 @@ bash dotfiles/install.bash
 == install後
 dotfiles : installしたソフトの設定を~/に置いとく系
 addon : sourceすることで端末に機能を追加する系
+
+zinitプラグイン
+p10k configure
