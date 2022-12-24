@@ -11,7 +11,7 @@ ln -s -f ${CDIR}/dotfiles/rc.conf ${HOME}/.config/ranger/rc.conf
 ln -s -f ${CDIR}/dotfiles/rfile.conf ${HOME}/.config/ranger/rfile.conf
 ln -s -f ${CDIR}/dotfiles/scope.sh ${HOME}/.config/ranger/scope.sh
 
-mkdir ~/dotrc -p
+mkdir -p ~/dotrc
 
 ln -s -f ${CDIR}/configs/.zinit_conf ${HOME}/dotrc/.zinit_conf
 echo "source ${HOME}/dotrc/.zinit_conf" >> ~/.zshrc

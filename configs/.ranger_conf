@@ -1,3 +1,0 @@
-ranger() { [ -n "$RANGER_LEVEL" ] && exit || command ranger "$@"; }
-
-alias rg="ranger"
