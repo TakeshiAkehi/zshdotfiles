@@ -1,29 +1,66 @@
 
 == 必須要件
+* MesloLGS NFフォントのインストール 
+* 使用してるターミナル側(vscodeやiTremなど)で使用フォントを設定
 
-== demo
+詳細手順は下記リンク参照のこと
+https://github.com/romkatv/powerlevel10k#manual-font-installation
 
+== docker demo
+docker起動
 ```
 make demo
 make zsh
 ```
 
-== debug
+見た目カスタム
 ```
-make image
-make bash
+p10k configure
 ```
-以降install手順に従う
+
+現在のgitブランチが表示される
+```
+cd zshdotfiles
+```
+
+gitサブコマンドの補完
+```
+git ch<tab>
+```
+
+現在のawsプロファイルが表示される (aws cli入力中のみ)
+```
+aws <space>
+```
+
+awsプロファイルのインタラクティブ切り替え
+```
+awsfz
+```
+
+親フォルダへのインタラクティブ移動
+```
+cd ..
+```
+
+最近使用したフォルダへのインタラクティブ移動
+```
+cd
+```
+
+最近使用したコマンドのインタラクティブ選択
+```
+<ctrl>-r
+# or
+<cmd>-r
+```
 
 == install
 
 ```
-bash dotfiles/install.bash
+git clone https://github.com/TakeshiAkehi/zshdotfiles.git 
+bash zshdotfiles/1_install.bash 
+bash zshdotfiles/2_link_dotfiles.bash 
+bash zshdotfiles/3_link_dotrc.bash
+exec /bin/zsh -l
 ```
-
-== install後
-dotfiles : installしたソフトの設定を~/に置いとく系
-addon : sourceすることで端末に機能を追加する系
-
-zinitプラグイン
-p10k configure
