@@ -1,4 +1,5 @@
 # addonフォルダ内に記述した設定をsourceする
+## シェルログイン時に毎回呼び出される想定
 CDIR=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 WDIR=${CDIR}/addon
 
