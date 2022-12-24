@@ -12,7 +12,19 @@ __dot::exec(){
 }
 
 awsfz() {
-  local profile=$(grep -o -P '(?<=\[profile )[^\]]+' ~/.aws/config  | sed "/default/d" | sort | fzf )
+  if [ "$(uname)" = 'Darwin' ]; then
+    if type "ggrep" > /dev/null 2>&1; then 
+        # 早い. 下記必要 
+        ## brew install coreutils
+        ## brew install gnu-sed
+        local profile=$(ggrep -o -P '(?<=\[profile )[^\]]+' ~/.aws/config  | sed "/default/d" | sort | fzf )
+    else
+        # 遅い
+        local profile=$(aws configure list-profiles | sort | fzf )
+    fi
+  else
+    local profile=$(grep -o -P '(?<=\[profile )[^\]]+' ~/.aws/config  | sed "/default/d" | sort | fzf )
+  fi
   local CMD="export AWS_PROFILE=$profile"
   __dot::exec "${CMD}"
 }

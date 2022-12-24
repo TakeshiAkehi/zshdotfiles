@@ -8,10 +8,13 @@ https://github.com/romkatv/powerlevel10k#manual-font-installation
 
 == docker demo
 docker起動
+
+* zinitのアドオンインストールが始まるので待つ
 ```
 make demo
 make zsh
 ```
+
 
 見た目カスタム
 ```
@@ -25,7 +28,12 @@ cd zshdotfiles
 
 gitサブコマンドの補完
 ```
-git ch<tab>
+git che<tab>
+```
+
+awsプロファイルのインタラクティブ切り替え
+```
+awsfz
 ```
 
 現在のawsプロファイルが表示される (aws cli入力中のみ)
@@ -33,10 +41,6 @@ git ch<tab>
 aws <space>
 ```
 
-awsプロファイルのインタラクティブ切り替え
-```
-awsfz
-```
 
 親フォルダへのインタラクティブ移動
 ```
@@ -57,6 +61,7 @@ cd
 
 == install
 
+※ macの1.インストールコマンドはちゃんと動くのか不明
 ```
 git clone https://github.com/TakeshiAkehi/zshdotfiles.git 
 bash zshdotfiles/1_install.bash 
@@ -64,6 +69,14 @@ bash zshdotfiles/2_link_dotfiles.bash
 bash zshdotfiles/3_link_dotrc.bash
 exec /bin/zsh -l
 ```
+
+macだとzsh compinit: insecure directoriesの警告が出るかも
+
+* `compaudit` コマンドを実行して表示されるディレクトリに
+* `chmod 755` 権限与えればおｋ
+
+https://qiita.com/ayihis@github/items/88f627b2566d6341a741
+
 
 === uninstall
 
