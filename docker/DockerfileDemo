@@ -12,5 +12,5 @@ RUN apt-get update &&\
 RUN git clone https://github.com/TakeshiAkehi/zshdotfiles.git &&\
     /bin/bash zshdotfiles/1_install.bash &&\
     /bin/bash zshdotfiles/2_link_dotfiles.bash &&\
-    /bin/bash zshdotfiles/3_link_dotrc.bash
+    /bin/bash zshdotfiles/3_enable_dotrc.bash
 

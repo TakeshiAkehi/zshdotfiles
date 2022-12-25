@@ -15,7 +15,6 @@ make demo
 make zsh
 ```
 
-
 見た目カスタム
 ```
 p10k configure
@@ -31,6 +30,14 @@ gitサブコマンドの補完
 git che<tab>
 ```
 
+存在しないコマンドは赤で，存在するコマンド緑で表示される
+```
+aw (赤)
+aws (緑)
+awsf (赤)
+awsfz (緑)
+```
+
 awsプロファイルのインタラクティブ切り替え
 ```
 awsfz
@@ -41,10 +48,12 @@ awsfz
 aws <space>
 ```
 
-
 親フォルダへのインタラクティブ移動
 ```
 cd ..
+
+# fzy起動したくない場合は
+cd ../
 ```
 
 最近使用したフォルダへのインタラクティブ移動
@@ -61,12 +70,11 @@ cd
 
 == install
 
-※ macの1.インストールコマンドはちゃんと動くのか不明
 ```
 git clone https://github.com/TakeshiAkehi/zshdotfiles.git 
 bash zshdotfiles/1_install.bash 
 bash zshdotfiles/2_link_dotfiles.bash 
-bash zshdotfiles/3_link_dotrc.bash
+bash zshdotfiles/3_enable_dotrc.bash
 exec /bin/zsh -l
 ```
 
@@ -84,5 +92,5 @@ https://qiita.com/ayihis@github/items/88f627b2566d6341a741
 ** -> aptやbrewで自力アンイストール
 * 2_link_dotfiles.bash
 ** -> bkupに元々$HOMEにあったファイルがあるので元の場所に戻す
-* 3_link_dotrc.bash
+* 3_enable_dotrc.bash
 ** -> ~/.zshrcの`source <このリポジトリのディレクトリ>/dotrc.zsh`の記述を消す
