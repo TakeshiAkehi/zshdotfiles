@@ -8,11 +8,7 @@ else
         brew install fzf
     else
         git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-        if [[ `id -u` -ne 0 ]]; then
-            sudo ~/.fzf/install --all
-        else
-            ~/.fzf/install --all
-        fi
+        ~/.fzf/install --all
     fi
 
     if [[ "${SHELL}" == *bash* ]]; then
