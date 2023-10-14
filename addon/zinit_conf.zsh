@@ -28,8 +28,8 @@ zinit light chrissicool/zsh-256color
 
 # "cd" で直近のディレクトリ履歴をfzyで選択
 # "cd .." 親ディレクトリをfzyで選択
-zinit ice wait lucid
-zinit light b4b4r07/enhancd
+#zinit ice wait lucid
+#zinit light b4b4r07/enhancd
 
 # イケてる見た目にする
 # "p10k configure" で設定
