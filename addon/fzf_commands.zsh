@@ -29,5 +29,30 @@ awsfz() {
   __dot::exec "${CMD}"
 }
 
+xssh() {
+  local profile=$(find ~/.ssh/keys -type f ! -name "*.*" | fzf)
+
+  if [[ -z "$profile" ]]; then
+      echo "cancelled." && return
+  fi
+  local name=$(basename $profile)
+  # echo $name
+  local arr=(${(@s:_:)name})
+  local host=${arr[2]}
+  # echo $host
+  #local info="${profile}_info.txt"
+  #if [ -f ${info} ]; then
+  #else
+  #  echo enter user name for $host
+  #  read user
+  #fi
+
+  echo enter user name for $host
+  read user
+  local CMD="ssh $user@$host -i $profile"
+  #echo $CMD
+  __dot::exec "${CMD}"
+}
+
 
 
