@@ -49,7 +49,7 @@ xssh() {
 
   echo enter user name for $host
   read user
-  local CMD="ssh $user@$host -i $profile"
+  local CMD="ssh $user@${host}.local -i $profile"
   #echo $CMD
   __dot::exec "${CMD}"
 }
