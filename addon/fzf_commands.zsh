@@ -29,7 +29,7 @@ awsfz() {
   __dot::exec "${CMD}"
 }
 
-xssh() {
+sshx() {
   local profile=$(find ~/.ssh/keys -type f ! -name "*.*" | fzf)
 
   if [[ -z "$profile" ]]; then
