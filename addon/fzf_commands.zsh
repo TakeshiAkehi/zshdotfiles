@@ -49,7 +49,11 @@ sshx() {
 
   echo enter user name for $host
   read user
-  local CMD="ssh $user@${host}.local -i $profile"
+  if [[ "$user" == "" ]] ; then
+    local CMD="ssh terra@${host}.local -i $profile"
+  else
+    local CMD="ssh $user@${host}.local -i $profile"
+  fi
   #echo $CMD
   __dot::exec "${CMD}"
 }
