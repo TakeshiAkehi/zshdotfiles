@@ -7,3 +7,4 @@ source ${WDIR}/zsh_conf.zsh
 source ${WDIR}/zinit_conf.zsh
 source ${WDIR}/fzf_commands.zsh
 # source ${WDIR}/gnu_commands.zsh
+source <(fzf --zsh)
