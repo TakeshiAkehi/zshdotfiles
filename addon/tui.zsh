@@ -25,6 +25,7 @@ sz() {
         __zoxide_z "$dir"
     fi
 }
+
 z() {
     # EXITEDセッションを除外してアクティブなセッションのみ取得（ANSIカラーコード除去）
     local sessions
@@ -49,4 +50,21 @@ z() {
 
     # EXITEDセッションを全て削除
     zellij delete-all-sessions -y 2>/dev/null
+}
+
+cdp() {
+    local clip_path=$(xclip -selection clipboard -o | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    if [ -z "$clip_path" ]; then
+        echo "Clipboard is empty."
+        return 1
+    fi
+    if [ -f "$clip_path" ]; then
+        local target_dir=$(dirname "$clip_path")
+        __zoxide_z "$target_dir"
+    elif [ -d "$clip_path" ]; then
+        __zoxide_z "$clip_path"
+    else
+        echo "Clipboard is not a valid file or directory"
+        return 1
+    fi
 }
