@@ -12,6 +12,7 @@ bash ${WDIR}/fzy.bash
 bash ${WDIR}/vim.bash
 bash ${WDIR}/zinit.bash
 bash ${WDIR}/xclip.bash
+bash ${WDIR}/tui.bash
 
 sudo chsh -s $(which zsh)
 
