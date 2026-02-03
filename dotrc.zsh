@@ -8,4 +8,5 @@ source ${WDIR}/zinit_conf.zsh
 source ${WDIR}/fzf_commands.zsh
 source ${WDIR}/tui.zsh
 # source ${WDIR}/gnu_commands.zsh
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 source <(fzf --zsh)
