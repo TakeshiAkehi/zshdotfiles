@@ -2,6 +2,8 @@ xdg-mime default vim.desktop text/plain
 export EDITOR=vim
 export VISUAL=vim
 
+alias lgit='lazygit'
+
 s() {
 		export SPF_LAST_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/superfile/lastdir"
     command spf "$@"
