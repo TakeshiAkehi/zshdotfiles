@@ -24,3 +24,6 @@ alias zshrc="vim ${HOME}/.zshrc; source ${HOME}/.zshrc"
 ## remove ansi escapes (色付き文字の出力から文字だけフィルタ)
 ### 例: cat test.txt | noansi 
 alias noansi="sed -e $'s/\x1b\[[0-9;]*m//g'"
+
+
+alias pbcopy='xclip -selection clipboard'

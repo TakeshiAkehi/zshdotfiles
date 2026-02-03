@@ -29,5 +29,34 @@ awsfz() {
   __dot::exec "${CMD}"
 }
 
+sshx() {
+  local profile=$(find ~/.ssh/keys -type f ! -name "*.*" | fzf)
+
+  if [[ -z "$profile" ]]; then
+      echo "cancelled." && return
+  fi
+  local name=$(basename $profile)
+  # echo $name
+  local arr=(${(@s:_:)name})
+  local host=${arr[2]}
+  # echo $host
+  #local info="${profile}_info.txt"
+  #if [ -f ${info} ]; then
+  #else
+  #  echo enter user name for $host
+  #  read user
+  #fi
+
+  echo enter user name for $host
+  read user
+  if [[ "$user" == "" ]] ; then
+    local CMD="ssh terra@${host}.local -i $profile"
+  else
+    local CMD="ssh $user@${host}.local -i $profile"
+  fi
+  #echo $CMD
+  __dot::exec "${CMD}"
+}
+
 
 
