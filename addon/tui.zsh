@@ -23,3 +23,28 @@ sz() {
         __zoxide_z "$dir"
     fi
 }
+z() {
+    # EXITEDセッションを除外してアクティブなセッションのみ取得（ANSIカラーコード除去）
+    local sessions
+    sessions=$(zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -v EXITED | grep -v '^\s*$')
+
+    if [ -z "$sessions" ]; then
+        zellij
+    else
+        local selected
+        selected=$(echo "[New Session]\n$sessions" | fzf --prompt="Zellij Session> " --header="Select session or create new")
+
+        if [ -n "$selected" ]; then
+            if [ "$selected" = "[New Session]" ]; then
+                zellij
+            else
+                local session_name
+                session_name=$(echo "$selected" | awk '{print $1}')
+                zellij attach "$session_name"
+            fi
+        fi
+    fi
+
+    # EXITEDセッションを全て削除
+    zellij delete-all-sessions -y 2>/dev/null
+}
