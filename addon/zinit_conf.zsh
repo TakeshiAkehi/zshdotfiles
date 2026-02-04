@@ -42,3 +42,6 @@ zinit ice wait lucid
 zinit light ytet5uy4/fzf-widgets
 bindkey '^r' fzf-insert-history
 zle -N fzf-insert-history
+
+# git worktree
+zinit light gko/gwt
