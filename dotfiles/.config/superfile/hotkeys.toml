@@ -35,8 +35,8 @@ toggle_file_preview_panel = ['f', '']
 toggle_reverse_sort = ['R', '']
 
 #-- Focus Manipulation
-focus_on_metadata = ['ctrl+m']
-focus_on_process_bar = ['ctrl+p']
+focus_on_metadata = ['m']
+focus_on_process_bar = ['M']
 focus_on_sidebar = ['s', '']
 
 #-- File/Dir Creation/Renaming

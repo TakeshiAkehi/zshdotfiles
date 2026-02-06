@@ -52,6 +52,213 @@ z() {
     zellij delete-all-sessions -y 2>/dev/null
 }
 
+# Git Worktree Manager
+gwt() {
+    local subcmd="${1:-help}"
+    shift 2>/dev/null
+
+    case "$subcmd" in
+        add)    _gwt_add "$@" ;;
+        list)   _gwt_list ;;
+        cd)     _gwt_cd ;;
+        remove) _gwt_remove ;;
+        *)      _gwt_help ;;
+    esac
+}
+
+_gwt_help() {
+    cat <<'EOF'
+Usage: gwt <subcommand>
+
+Subcommands:
+  add [branch]    Create worktree with specified branch (vared input if omitted)
+  add --issue     Select GitHub issue via fzf, auto-generate branch name
+  list            List existing worktrees
+  cd              Select worktree via fzf and cd into it
+  remove          Select worktree via fzf and remove it
+EOF
+}
+
+# worktree作成 + submodule初期化の共通処理
+_gwt_init_worktree() {
+    local branch_name="$1" wt_dir="$2"
+
+    # ブランチが既に存在するか確認
+    if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+        echo "Branch '${branch_name}' already exists."
+        if [ -d "$wt_dir" ]; then
+            echo "Worktree already exists at ${wt_dir}, changing directory."
+            cd "$wt_dir" || return 1
+            echo "Ensuring submodules are initialized..."
+            git submodule update --recursive --init
+            git submodule foreach --recursive 'git lfs pull'
+            return 0
+        fi
+        git worktree add "$wt_dir" "$branch_name" || return 1
+    else
+        git worktree add -b "$branch_name" "$wt_dir" || return 1
+    fi
+
+    cd "$wt_dir" || return 1
+    echo "Worktree created at ${wt_dir}"
+
+    echo "Initializing submodules..."
+    git submodule update --recursive --init
+    echo "Pulling LFS objects for submodules..."
+    git submodule foreach --recursive 'git lfs pull'
+
+    echo "Done. Now on branch '${branch_name}' at ${wt_dir}"
+}
+
+_gwt_add() {
+    # gitリポジトリ確認
+    local repo_root
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+        echo "Error: Not inside a git repository." >&2
+        return 1
+    }
+
+    local wt_base="${GWT_BASE_DIR:-$(dirname "$repo_root")}"
+
+    if [[ "$1" == "--issue" ]]; then
+        # --issue モード: GitHub issueから自動生成
+        if ! command -v gh &>/dev/null; then
+            echo "Error: gh CLI is not installed." >&2
+            return 1
+        fi
+
+        local issue
+        issue=$(gh issue list --state open --limit 50 --json number,title \
+            --template '{{range .}}#{{.number}} {{.title}}{{"\n"}}{{end}}' \
+            | fzf --prompt="Issue> " \
+                  --header="Select issue | ctrl-w: open web | ctrl-/: toggle preview" \
+                  --preview 'gh issue view {1}' \
+                  --preview-window 'up:50%:wrap' \
+                  --bind 'ctrl-w:execute-silent(gh issue view {1} --web)' \
+                  --bind 'ctrl-/:toggle-preview')
+
+        if [ -z "$issue" ]; then
+            echo "Cancelled."
+            return 0
+        fi
+
+        local issue_number issue_title
+        issue_number=$(echo "$issue" | sed 's/^#\([0-9]*\) .*/\1/')
+        issue_title=$(echo "$issue" | sed 's/^#[0-9]* //')
+
+        # タイトルをブランチ名に変換
+        local sanitized_title
+        sanitized_title=$(echo "$issue_title" | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[[:space:]]/-/g; s/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//' \
+            | cut -c1-50)
+
+        local branch_name="feature/${issue_number}-${sanitized_title}"
+
+        # varedでブランチ名を編集可能に
+        echo "Branch name (edit or press Enter to accept):"
+        vared -p "> " branch_name
+
+        if [ -z "$branch_name" ]; then
+            echo "Cancelled."
+            return 0
+        fi
+
+        if ! git check-ref-format --branch "$branch_name" 2>/dev/null; then
+            echo "Error: Invalid branch name '${branch_name}'." >&2
+            return 1
+        fi
+
+        # worktreeパスはプレフィックスを除去してフラット配置
+        local wt_dirname="${branch_name//\//-}"
+        local wt_dir="${wt_base}/${wt_dirname}"
+
+        _gwt_init_worktree "$branch_name" "$wt_dir"
+    elif [ -n "$1" ]; then
+        # 引数指定モード
+        local branch_name="$1"
+        local wt_dirname="${branch_name//\//-}"
+        local wt_dir="${wt_base}/${wt_dirname}"
+
+        _gwt_init_worktree "$branch_name" "$wt_dir"
+    else
+        # 引数なし: varedで入力
+        local branch_name=""
+        vared -p "Branch name> " branch_name
+
+        if [ -z "$branch_name" ]; then
+            echo "Cancelled."
+            return 0
+        fi
+
+        if ! git check-ref-format --branch "$branch_name" 2>/dev/null; then
+            echo "Error: Invalid branch name '${branch_name}'." >&2
+            return 1
+        fi
+
+        local wt_dirname="${branch_name//\//-}"
+        local wt_dir="${wt_base}/${wt_dirname}"
+
+        _gwt_init_worktree "$branch_name" "$wt_dir"
+    fi
+}
+
+_gwt_list() {
+    git rev-parse --show-toplevel &>/dev/null || {
+        echo "Error: Not inside a git repository." >&2
+        return 1
+    }
+    git worktree list
+}
+
+_gwt_cd() {
+    git rev-parse --show-toplevel &>/dev/null || {
+        echo "Error: Not inside a git repository." >&2
+        return 1
+    }
+
+    local selected
+    selected=$(git worktree list | fzf --prompt="Worktree> " --header="Select worktree to cd into")
+
+    if [ -z "$selected" ]; then
+        echo "Cancelled."
+        return 0
+    fi
+
+    local wt_path
+    wt_path=$(echo "$selected" | awk '{print $1}')
+    cd "$wt_path"
+}
+
+_gwt_remove() {
+    local repo_root
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+        echo "Error: Not inside a git repository." >&2
+        return 1
+    }
+
+    # メインworktreeを除外して一覧表示
+    local selected
+    selected=$(git worktree list | awk -v main="$repo_root" '$1 != main' \
+        | fzf --prompt="Remove Worktree> " --header="Select worktree to remove")
+
+    if [ -z "$selected" ]; then
+        echo "Cancelled."
+        return 0
+    fi
+
+    local wt_path
+    wt_path=$(echo "$selected" | awk '{print $1}')
+
+    echo "Remove worktree at ${wt_path}? [y/N]"
+    read -q "confirm?"
+    echo
+    if [[ "$confirm" != "y" ]]; then
+        echo "Cancelled."
+        return 0
+    fi
+    git worktree remove "$wt_path"
+}
+
 cdp() {
     local clip_path=$(xclip -selection clipboard -o | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     if [ -z "$clip_path" ]; then
@@ -68,3 +275,4 @@ cdp() {
         return 1
     fi
 }
+
