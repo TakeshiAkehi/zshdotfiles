@@ -13,16 +13,34 @@ s() {
     }
 }
 
-eval "$(zoxide init zsh --no-aliases)"
-cd() {
-    __zoxide_z "$@"
-}
+# zoxideコマンドが存在するか確認
+if (( $+commands[zoxide] )); then
+    eval "$(zoxide init zsh)"
+    
+    # zoxideが正常にロードされた場合のみ、cdをzoxideに差し替える
+    if (( $+functions[__zoxide_z] )); then
+			cd() {
+					# __zoxide_z 関数が存在するかチェック
+					if (( $+functions[__zoxide_z] )); then
+							__zoxide_z "$@"
+					else
+							# 存在しない場合は、ビルトインのcdを呼び出す
+							echo "WARN : falled back to builtin-cd"
+							builtin cd "$@"
+					fi
+			}
+    fi
+else
+    # zoxideがない場合は何もしない（通常のcdがそのまま使われる）
+    # 必要に応じてログを出したい場合はここに記述
+    # echo "zoxide not found, using default cd"
+fi
 
 sz() {
     local dir
     dir=$(zoxide query -i)
     if [ -n "$dir" ]; then
-        __zoxide_z "$dir"
+        builtin cd "$dir"
     fi
 }
 
@@ -267,9 +285,9 @@ cdp() {
     fi
     if [ -f "$clip_path" ]; then
         local target_dir=$(dirname "$clip_path")
-        __zoxide_z "$target_dir"
+        builtin cd "$target_dir"
     elif [ -d "$clip_path" ]; then
-        __zoxide_z "$clip_path"
+        builtin cd "$clip_path"
     else
         echo "Clipboard is not a valid file or directory"
         return 1
