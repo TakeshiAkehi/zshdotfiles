@@ -267,13 +267,27 @@ _gwt_remove() {
     local wt_path
     wt_path=$(echo "$selected" | awk '{print $1}')
 
-    echo "Remove worktree at ${wt_path}? [y/N]"
-    read -q "confirm?"
+    echo "Remove worktree at ${wt_path}? [y/N/f] (f=force)"
+    #read -q "confirm?"
+    read -k 1 "confirm?"
     echo
-    if [[ "$confirm" != "y" ]]; then
-        echo "Cancelled."
-        return 0
-    fi
+		case "$confirm" in
+        [yY])
+            git worktree remove "$wt_path"
+            ;;
+        [fF])
+            echo "Force removing..."
+            git worktree remove -f "$wt_path"
+            ;;
+        *)
+            echo "Cancelled."
+            return 0
+            ;;
+    esac
+    #if [[ "$confirm" != "y" ]]; then
+    #    echo "Cancelled."
+    #    return 0
+    #fi
     git worktree remove "$wt_path"
 }
 
