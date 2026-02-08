@@ -159,6 +159,15 @@ keybinds clear-defaults=true {
         bind "Alt p" { TogglePaneInGroup; }
         bind "Alt Shift p" { ToggleGroupMarking; }
         bind "Ctrl q" { Quit; }
+        bind "Alt PageDown" { PageScrollDown; }
+        bind "Alt PageUp" { PageScrollUp; }
+        bind "Ctrl Alt PageUp" { GoToPreviousTab; }
+        bind "Ctrl Alt PageDown" { GoToNextTab; }
+        bind "Alt t" { NewTab; SwitchToMode "normal"; }
+        bind "Alt Shift down" { NewPane "down"; SwitchToMode "normal"; }
+        bind "Alt Shift right" { NewPane "right"; SwitchToMode "normal"; }
+        bind "Alt Shift up" { NewPane "up"; SwitchToMode "normal"; }
+        bind "Alt Shift left" { NewPane "left"; SwitchToMode "normal"; }
     }
     shared_except "locked" "move" {
         bind "Ctrl h" { SwitchToMode "move"; }
