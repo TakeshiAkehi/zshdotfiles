@@ -99,125 +99,86 @@ EOF
 
 # worktree作成 + submodule初期化の共通処理
 _gwt_init_worktree() {
-    local branch_name="$1" wt_dir="$2"
+    local branch_name="$1" wt_dir="$2" base_branch="$3"
 
-    # ブランチが既に存在するか確認
-    if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
-        echo "Branch '${branch_name}' already exists."
-        if [ -d "$wt_dir" ]; then
-            echo "Worktree already exists at ${wt_dir}, changing directory."
-            cd "$wt_dir" || return 1
-            echo "Ensuring submodules are initialized..."
-            git submodule update --recursive --init
-            git submodule foreach --recursive 'git lfs pull'
-            return 0
-        fi
-        git worktree add "$wt_dir" "$branch_name" || return 1
-    else
-        git worktree add -b "$branch_name" "$wt_dir" || return 1
+    # 既にディレクトリが存在する場合の処理
+    if [ -d "$wt_dir" ]; then
+        echo "Worktree directory already exists at ${wt_dir}."
+        builtin cd "$wt_dir" || return 1
+        echo "Ensuring submodules are initialized..."
+        git submodule update --recursive --init
+        git submodule foreach --recursive 'git lfs pull'
+        return 0
     fi
 
-    cd "$wt_dir" || return 1
-    echo "Worktree created at ${wt_dir}"
+    # ブランチ作成とworktree追加
+    if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+        echo "Using existing local branch: ${branch_name}"
+        git worktree add "$wt_dir" "$branch_name" || return 1
+    elif git show-ref --verify --quiet "refs/remotes/origin/${branch_name}"; then
+        echo "Tracking existing remote branch: ${branch_name}"
+        git worktree add "$wt_dir" "$branch_name" || return 1
+    else
+        echo "Creating new branch '${branch_name}' from '${base_branch}'"
+        git worktree add -b "$branch_name" "$wt_dir" "$base_branch" || return 1
+    fi
 
+    builtin cd "$wt_dir" || return 1
     echo "Initializing submodules..."
     git submodule update --recursive --init
-    echo "Pulling LFS objects for submodules..."
     git submodule foreach --recursive 'git lfs pull'
-
     echo "Done. Now on branch '${branch_name}' at ${wt_dir}"
 }
 
 _gwt_add() {
-    # gitリポジトリ確認
     local repo_root
-    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-        echo "Error: Not inside a git repository." >&2
-        return 1
-    }
-
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
     local wt_base="${GWT_BASE_DIR:-$(dirname "$repo_root")}"
+    local branch_name="$1"
+    local base_branch="HEAD" # デフォルトの派生元
 
+    # 引数がない場合、または --issue の場合に名前を決定
     if [[ "$1" == "--issue" ]]; then
-        # --issue モード: GitHub issueから自動生成
-        if ! command -v gh &>/dev/null; then
-            echo "Error: gh CLI is not installed." >&2
-            return 1
-        fi
-
-        local issue
-        issue=$(gh issue list --state open --limit 50 --json number,title \
-            --template '{{range .}}#{{.number}} {{.title}}{{"\n"}}{{end}}' \
-            | fzf --prompt="Issue> " \
-                  --header="Select issue | ctrl-w: open web | ctrl-/: toggle preview" \
-                  --preview 'gh issue view {1}' \
-                  --preview-window 'up:50%:wrap' \
-                  --bind 'ctrl-w:execute-silent(gh issue view {1} --web)' \
-                  --bind 'ctrl-/:toggle-preview')
-
-        if [ -z "$issue" ]; then
-            echo "Cancelled."
-            return 0
-        fi
-
-        local issue_number issue_title
-        issue_number=$(echo "$issue" | sed 's/^#\([0-9]*\) .*/\1/')
-        issue_title=$(echo "$issue" | sed 's/^#[0-9]* //')
-
-        # タイトルをブランチ名に変換
-        local sanitized_title
-        sanitized_title=$(echo "$issue_title" | tr '[:upper:]' '[:lower:]' \
-            | sed 's/[[:space:]]/-/g; s/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//' \
-            | cut -c1-50)
-
-        local branch_name="feature/${issue_number}-${sanitized_title}"
-
-        # varedでブランチ名を編集可能に
-        echo "Branch name (edit or press Enter to accept):"
-        vared -p "> " branch_name
-
-        if [ -z "$branch_name" ]; then
-            echo "Cancelled."
-            return 0
-        fi
-
-        if ! git check-ref-format --branch "$branch_name" 2>/dev/null; then
-            echo "Error: Invalid branch name '${branch_name}'." >&2
-            return 1
-        fi
-
-        # worktreeパスはプレフィックスを除去してフラット配置
-        local wt_dirname="${branch_name//\//-}"
-        local wt_dir="${wt_base}/${wt_dirname}"
-
-        _gwt_init_worktree "$branch_name" "$wt_dir"
-    elif [ -n "$1" ]; then
-        # 引数指定モード
-        local branch_name="$1"
-        local wt_dirname="${branch_name//\//-}"
-        local wt_dir="${wt_base}/${wt_dirname}"
-
-        _gwt_init_worktree "$branch_name" "$wt_dir"
-    else
-        # 引数なし: varedで入力
-        local branch_name=""
+        if ! command -v gh &>/dev/null; then echo "gh CLI not found"; return 1; fi
+        local issue=$(gh issue list --state open --limit 50 --json number,title --template '{{range .}}#{{.number}} {{.title}}{{"\n"}}{{end}}' | fzf --prompt="Issue> ")
+        [ -z "$issue" ] && return 0
+        local issue_num=$(echo "$issue" | sed 's/^#\([0-9]*\) .*/\1/')
+        local issue_title=$(echo "$issue" | sed 's/^#[0-9]* //')
+        branch_name="feature/${issue_num}-$(echo "$issue_title" | tr '[:upper:]' '[:lower:]' | sed 's/[[:space:]]/-/g; s/[^a-z0-9-]//g' | cut -c1-50)"
+        vared -p "Edit branch name> " branch_name
+    elif [ -z "$branch_name" ]; then
         vared -p "Branch name> " branch_name
+    fi
 
-        if [ -z "$branch_name" ]; then
-            echo "Cancelled."
+    [ -z "$branch_name" ] && return 0
+
+    # ブランチの存在チェックと派生元選択
+		local local_exists=$(git show-ref "refs/heads/${branch_name}" >/dev/null 2>&1 && echo "yes")
+		local remote_exists=$(git show-ref "refs/remotes/origin/${branch_name}" >/dev/null 2>&1 && echo "yes")
+
+    if [[ -n "$local_exists" || -n "$remote_exists" ]]; then
+        echo "Branch '${branch_name}' already exists (Local: ${local_exists:-no}, Remote: ${remote_exists:-no})."
+        echo "Choose action:"
+        local action=$(echo "Use existing branch\nPick a different base and create new (force rename)\nCancel" | fzf --prompt="Action> ")
+        
+        if [[ "$action" =~ "Pick" ]]; then
+            base_branch=$(git branch -a | sed 's/..//' | fzf --prompt="Select base branch> ")
+            [ -z "$base_branch" ] && return 0
+        elif [[ "$action" == "Cancel" ]]; then
             return 0
         fi
-
-        if ! git check-ref-format --branch "$branch_name" 2>/dev/null; then
-            echo "Error: Invalid branch name '${branch_name}'." >&2
-            return 1
-        fi
-
-        local wt_dirname="${branch_name//\//-}"
-        local wt_dir="${wt_base}/${wt_dirname}"
-
-        _gwt_init_worktree "$branch_name" "$wt_dir"
+    else
+        # 新規ブランチの場合の確認
+        echo -n "Branch '${branch_name}' does not exist. Create it? [y/N] "
+        read -k 1 res; echo
+        [[ "$res" != "y" ]] && return 0
+        base_branch=$(git branch -a | sed 's/..//' | fzf --prompt="Select base branch (default: HEAD)> ")
+        [ -z "$base_branch" ] && base_branch="HEAD"
     fi
+
+    local wt_dirname="${branch_name//\//-}"
+    local wt_dir="${wt_base}/${wt_dirname}"
+    _gwt_init_worktree "$branch_name" "$wt_dir" "$base_branch"
 }
 
 _gwt_list() {
@@ -248,47 +209,33 @@ _gwt_cd() {
 }
 
 _gwt_remove() {
+    # 常にメインリポジトリのパスを取得して、そこから操作を行う
     local repo_root
-    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-        echo "Error: Not inside a git repository." >&2
-        return 1
-    }
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    
+    # メインworktreeは削除させない
+    #local selected=$(git worktree list | grep -v "\[.*\]" | awk -v main="$repo_root" '$1 != main' | fzf --prompt="Remove Worktree> ")
+		local selected=$(git worktree list | awk -v main="$repo_root" '$1 != main' | fzf --prompt="Remove Worktree> ")
+    [ -z "$selected" ] && return 0
 
-    # メインworktreeを除外して一覧表示
-    local selected
-    selected=$(git worktree list | awk -v main="$repo_root" '$1 != main' \
-        | fzf --prompt="Remove Worktree> " --header="Select worktree to remove")
-
-    if [ -z "$selected" ]; then
-        echo "Cancelled."
-        return 0
-    fi
-
-    local wt_path
-    wt_path=$(echo "$selected" | awk '{print $1}')
+    local wt_path=$(echo "$selected" | awk '{print $1}')
 
     echo "Remove worktree at ${wt_path}? [y/N/f] (f=force)"
-    #read -q "confirm?"
-    read -k 1 "confirm?"
-    echo
-		case "$confirm" in
+    read -k 1 confirm; echo
+    
+    # 重要: git worktree remove はメインリポジトリのディレクトリから実行するのが確実
+    case "$confirm" in
         [yY])
-            git worktree remove "$wt_path"
+            (cd "$repo_root" && git worktree remove "$wt_path")
             ;;
         [fF])
             echo "Force removing..."
-            git worktree remove -f "$wt_path"
+            (cd "$repo_root" && git worktree remove -f "$wt_path")
             ;;
         *)
             echo "Cancelled."
-            return 0
             ;;
     esac
-    #if [[ "$confirm" != "y" ]]; then
-    #    echo "Cancelled."
-    #    return 0
-    #fi
-    git worktree remove "$wt_path"
 }
 
 cdp() {
