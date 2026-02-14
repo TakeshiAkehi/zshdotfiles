@@ -4,9 +4,9 @@
 keymap = [
 	{ on = "<Esc>", run = "escape",             desc = "Exit visual mode, clear selection, or cancel search" },
 	{ on = "q",     run = "quit",               desc = "Quit" },
-	{ on = "Q",     run = "quit --no-cwd-file", desc = "Quit w/o cwd" },
+	{ on = "<C-d>",     run = "quit --no-cwd-file", desc = "Quit w/o cwd" },
 	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
-	{ on = "<C-z>", run = "suspend",            desc = "Suspend the process" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 
 	# Hopping
 	{ on = "k", run = "arrow prev", desc = "Previous file" },
@@ -125,6 +125,7 @@ keymap = [
 	{ on = [":",";"],         run = "shell --interactive",         desc = "Run a shell command" },
 	{ on = [":",":"],         run = "shell /bin/zsh --block", desc = "zsh" },
 
+	{ on = [":","d"], run = "shell -- dragon -x -i -T %s1", desc = "Dragon" }
 ]
 
 
@@ -132,28 +133,41 @@ keymap = [
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
 	{ on = "q",     run = "close",               desc = "Close" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [spot]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [pick]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [input]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [confirm]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [cmp]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
 [help]
 prepend_keymap = [
 	{ on = "?", run = "help", desc = "Open help" },
+	{ on = "<C-c>",     run = "close",              desc = "Close the current tab, or quit if it's last" },
+	{ on = "w",     run = "close",              desc = "Close the current tab, or quit if it's last" },
 ]
