@@ -36,6 +36,8 @@ keymap = [
 
 	# Visual mode
 	{ on = "v", run = "visual_mode",         desc = "Enter visual mode (selection mode)" },
+	{ on = "V", run = "visual_mode --unset", desc = "Enter visual mode (unset mode)" },
+
 
 	# Seeking
 	{ on = "K", run = "seek -5", desc = "Seek up 5 units in the preview" },
