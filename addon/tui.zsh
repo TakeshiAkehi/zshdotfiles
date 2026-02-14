@@ -36,12 +36,25 @@ else
     # echo "zoxide not found, using default cd"
 fi
 
-sz() {
+x() {
     local dir
     dir=$(zoxide query -i)
     if [ -n "$dir" ]; then
         builtin cd "$dir"
     fi
+}
+
+function y() {
+	if [ -n "$YAZI_LEVEL" ]; then
+        echo "Error: Already inside a Yazi subshell (Level: $YAZI_LEVEL)"
+        echo "Exit this shell to return to the parent Yazi instance."
+        return 1
+    fi
+	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+	command yazi "$@" --cwd-file="$tmp"
+	IFS= read -r -d '' cwd < "$tmp"
+	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && cd -- "$cwd"
+	rm -f -- "$tmp"
 }
 
 z() {
