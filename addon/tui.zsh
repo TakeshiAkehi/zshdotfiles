@@ -15,7 +15,9 @@ s() {
 
 # zoxideコマンドが存在するか確認
 if (( $+commands[zoxide] )); then
-    eval "$(zoxide init zsh)"
+	  if [[ -o interactive ]]; then
+       eval "$(zoxide init zsh)"
+    fi
     
     # zoxideが正常にロードされた場合のみ、cdをzoxideに差し替える
     if (( $+functions[__zoxide_z] )); then
@@ -36,7 +38,7 @@ else
     # echo "zoxide not found, using default cd"
 fi
 
-x() {
+z() {
     local dir
     dir=$(zoxide query -i)
     if [ -n "$dir" ]; then
@@ -57,7 +59,7 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-z() {
+j() {
     # EXITEDセッションを除外してアクティブなセッションのみ取得（ANSIカラーコード除去）
     local sessions
     sessions=$(zellij list-sessions 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -v EXITED | grep -v '^\s*$')
