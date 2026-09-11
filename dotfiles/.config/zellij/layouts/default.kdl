@@ -1,0 +1,11 @@
+// ビルトインの default レイアウトと同じ内容
+// スワップレイアウトは同じディレクトリの default.swap.kdl から読み込まれる
+layout {
+    pane size=1 borderless=true {
+        plugin location="tab-bar"
+    }
+    pane
+    pane size=1 borderless=true {
+        plugin location="status-bar"
+    }
+}
