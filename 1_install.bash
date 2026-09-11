@@ -13,6 +13,7 @@ bash ${WDIR}/vim.bash
 bash ${WDIR}/zinit.bash
 bash ${WDIR}/xclip.bash
 bash ${WDIR}/tui.bash
+bash ${WDIR}/yazi.bash
 
 sudo chsh -s $(which zsh)
 
