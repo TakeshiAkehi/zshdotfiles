@@ -15,6 +15,7 @@ bash ${WDIR}/xclip.bash
 bash ${WDIR}/tui.bash
 bash ${WDIR}/zellij-choose-tree.bash
 bash ${WDIR}/yazi.bash
+bash ${WDIR}/claude-statusline.bash
 
 sudo chsh -s $(which zsh)
 

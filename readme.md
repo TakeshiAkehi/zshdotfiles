@@ -53,6 +53,14 @@ zellijのセッション管理サイドバー (zellij-choose-tree)
 初回はzellij起動時にプラグインの権限確認が出るので `y` で許可する．
 プラグインは `installer/zellij-choose-tree.bash` がパッチ (`installer/zellij-choose-tree/sidebar.patch`) を当ててビルドし `~/.config/zellij/plugins/` に配置する．
 
+Claude Codeのstatusline (モデル │ ディレクトリ(gitブランチ) │ コンテキスト使用量)
+```
+Opus 5.5 │ ~/soft/zshdotfiles (main) │ █████░░░░░ 57% (115k/200k)
+```
+使用率は 50%未満 緑 / 80%未満 黄 / それ以上 赤．
+本体は `dotfiles/.claude/statusline.sh` (2_link_dotfiles.bashで `~/.claude/statusline.sh` にリンク)，
+`~/.claude/settings.json` への登録は `installer/claude-statusline.bash` が行う．
+
 ## install
 
 ```
