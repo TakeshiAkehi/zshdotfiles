@@ -41,6 +41,18 @@ cd
 <ctrl>-r
 ```
 
+zellijのセッション管理サイドバー (zellij-choose-tree)
+```
+<Alt>-s        現在のタブの左にセッションツリーを表示 / 非表示 (表示時はフォーカスもツリーへ)
+  j/k h/l      移動 / 折りたたみ・展開
+  Enter, 0-9   セッション・タブ・ペインへ移動 (サイドバーは閉じる)
+  n            新規セッションを作成して移動 (名前を入力してEnter, 空ならランダム名, Escで取消)
+  x            選択セッションを終了
+  Esc          サイドバーを閉じる
+```
+初回はzellij起動時にプラグインの権限確認が出るので `y` で許可する．
+プラグインは `installer/zellij-choose-tree.bash` がパッチ (`installer/zellij-choose-tree/sidebar.patch`) を当ててビルドし `~/.config/zellij/plugins/` に配置する．
+
 ## install
 
 ```

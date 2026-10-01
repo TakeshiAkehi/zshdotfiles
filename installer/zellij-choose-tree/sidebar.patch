@@ -1,0 +1,408 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index a480206..9d5a51f 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -6,4 +6,4 @@ description = "Zellij plugin to quickly switch between sessions, inspired by tmu
+ license = "MIT"
+ 
+ [dependencies]
+-zellij-tile = "0.41.1"
++zellij-tile = "0.45.1"
+diff --git a/src/config.rs b/src/config.rs
+index 3724c6b..af06633 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -3,12 +3,18 @@ use std::collections::BTreeMap;
+ #[derive(Default)]
+ pub struct Config {
+     pub show_plugins: bool,
++    pub close_on_exit: bool,
++    pub exit_layout: Option<String>,
++    pub sidebar_layout: Option<String>,
+ }
+ 
+ impl From<BTreeMap<String, String>> for Config {
+     fn from(config: BTreeMap<String, String>) -> Self {
+         Self {
+             show_plugins: config.get("show_plugins").map(|s| s == "true").unwrap_or(false),
++            close_on_exit: config.get("close_on_exit").map(|s| s == "true").unwrap_or(false),
++            exit_layout: config.get("exit_layout").cloned(),
++            sidebar_layout: config.get("sidebar_layout").cloned(),
+         }
+     }
+ }
+diff --git a/src/main.rs b/src/main.rs
+index 744f1e0..4f24ce8 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -18,6 +18,11 @@ struct State {
+     config: Config,
+ 
+     handling_sessionpick_request_from: Option<(PipeSource, BTreeMap<String, String>)>,
++    tabs: Vec<TabInfo>,
++    pending_toggle: bool,
++    // Some(name) while typing the name of a new session
++    new_session_name: Option<String>,
++    panes: PaneManifest,
+     debug: String,
+ }
+ 
+@@ -26,6 +31,7 @@ register_plugin!(State);
+ impl ZellijPlugin for State {
+     fn load(&mut self, configuration: BTreeMap<String, String>) {
+         self.config = Config::from(configuration);
++        utils::set_exit_behaviour(self.config.close_on_exit, self.config.exit_layout.clone());
+         request_permission(&[
+             PermissionType::ChangeApplicationState,
+             PermissionType::MessageAndLaunchOtherPlugins,
+@@ -33,21 +39,66 @@ impl ZellijPlugin for State {
+             PermissionType::ReadCliPipes,
+             PermissionType::RunCommands,
+         ]);
+-        subscribe(&[EventType::SessionUpdate, EventType::Key]);
++        subscribe(&[
++            EventType::SessionUpdate,
++            EventType::Key,
++            EventType::PermissionRequestResult,
++            EventType::Timer,
++            EventType::TabUpdate,
++            EventType::PaneUpdate,
++        ]);
+     }
+ 
+     fn update(&mut self, event: Event) -> bool {
+         let mut should_render = false;
+         match event {
++            Event::PermissionRequestResult(PermissionStatus::Granted) => {
++                if self.config.sidebar_layout.is_some() {
++                    // controller: no UI, nothing to poll
++                    return false;
++                }
++                if self.config.exit_layout.is_some() {
++                    // mark the pane so the controller can find this sidebar
++                    rename_plugin_pane(get_plugin_ids().plugin_id, SIDEBAR_TITLE);
++                }
++                poll_session_list();
++            }
++            // zellij >= 0.45 only reports other sessions when a plugin asks for them
++            Event::Timer(_) => {
++                poll_session_list();
++            }
++            Event::TabUpdate(tabs) => {
++                self.tabs = tabs;
++                if self.pending_toggle {
++                    self.toggle_sidebar();
++                }
++            }
++            Event::PaneUpdate(panes) => {
++                self.panes = panes;
++            }
+             Event::SessionUpdate(sessions, _) => {
+                 if !self.initialised {
+                     self.session_tree = SessionTree::new(sessions, &self.config);
+                     self.initialised = true;
+-                    should_render = true;
++                } else {
++                    self.session_tree.refresh(sessions, &self.config);
+                 }
++                should_render = true;
++            }
++            Event::Key(key) if self.new_session_name.is_some() => {
++                self.handle_new_session_input(key);
++                should_render = true;
+             }
+             Event::Key(key) => {
+                 match key {
++                    // Start typing the name of a new session
++                    KeyWithModifier {
++                        bare_key: BareKey::Char('n'),
++                        key_modifiers: _,
++                    } => {
++                        self.new_session_name = Some(String::new());
++                        should_render = true;
++                    }
+                     // Select the node under the cursor
+                     KeyWithModifier {
+                         bare_key: BareKey::Enter,
+@@ -120,7 +171,7 @@ impl ZellijPlugin for State {
+                         bare_key: BareKey::Esc,
+                         key_modifiers: _,
+                     } => {
+-                        hide_self();
++                        utils::exit_self();
+                     }
+                     _ => (),
+                 }
+@@ -131,6 +182,17 @@ impl ZellijPlugin for State {
+     }
+ 
+     fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
++        match pipe_message.name.as_str() {
++            "toggle_sidebar" => {
++                self.toggle_sidebar();
++                return false;
++            }
++            "close_sidebar" => {
++                utils::exit_self();
++                return false;
++            }
++            _ => {}
++        }
+         if pipe_message.is_private && pipe_message.name == "sessionpicker" {
+             if let PipeSource::Cli(pipe_id) = &pipe_message.source {
+                 self.debug = format!("Received sessionpicker request from cli pipe {}", pipe_id);
+@@ -144,7 +206,10 @@ impl ZellijPlugin for State {
+     }
+ 
+     fn render(&mut self, rows: usize, cols: usize) {
+-        println!();
++        match &self.new_session_name {
++            Some(name) => println!(" new session: {}\u{2588}", name),
++            None => println!("\u{1b}[2m n:new  x:kill  enter:open  esc:close\u{1b}[0m"),
++        }
+         if !self.debug.is_empty() {
+             println!("{}", self.debug);
+             println!();
+@@ -154,6 +219,63 @@ impl ZellijPlugin for State {
+ }
+ 
+ impl State {
++    // Enter: create (or attach to) the session and switch to it, Esc: cancel
++    fn handle_new_session_input(&mut self, key: KeyWithModifier) {
++        let Some(name) = self.new_session_name.as_mut() else {
++            return;
++        };
++        match key.bare_key {
++            BareKey::Enter => {
++                let name = name.trim().to_string();
++                self.new_session_name = None;
++                // leave the sidebar before switching: exit_layout needs this session's active tab
++                utils::exit_self();
++                if name.is_empty() {
++                    switch_session(None);
++                } else {
++                    switch_session(Some(&name));
++                }
++            }
++            BareKey::Esc => self.new_session_name = None,
++            BareKey::Backspace => {
++                name.pop();
++            }
++            BareKey::Char(c) if c != '/' && key.key_modifiers.iter().all(|m| *m == KeyModifier::Shift) => name.push(c),
++            _ => {}
++        }
++    }
++
++    // Controller instance (`sidebar_layout` set, usually started from `load_plugins`):
++    // close the sidebar of the active tab if there is one, otherwise open it there
++    fn toggle_sidebar(&mut self) {
++        let Some(sidebar_layout) = self.config.sidebar_layout.clone() else {
++            return;
++        };
++        let Some(active_tab) = self.tabs.iter().find(|tab| tab.active).map(|tab| tab.position) else {
++            // no state yet, retry once TabUpdate arrives
++            self.pending_toggle = true;
++            return;
++        };
++        self.pending_toggle = false;
++        let sidebar = self.panes.panes.get(&active_tab).and_then(|panes| {
++            panes.iter().find(|pane| {
++                pane.is_plugin && !pane.is_floating && !pane.is_suppressed && pane.title == SIDEBAR_TITLE
++            })
++        });
++        match sidebar {
++            Some(pane) => pipe_message_to_plugin(
++                MessageToPlugin::new("close_sidebar").with_destination_plugin_id(pane.id),
++            ),
++            None => utils::apply_layout(&sidebar_layout),
++        }
++        // launched as a pane by the keybind (not from load_plugins): keep running, out of sight
++        let my_id = get_plugin_ids().plugin_id;
++        let has_pane = self.panes.panes.values().flatten().any(|pane| pane.is_plugin && pane.id == my_id);
++        if has_pane {
++            hide_self();
++        }
++    }
++
+     fn handle_sessionpick_request(&mut self) -> Result<(), String> {
+         let current_node = self.session_tree.get_current_node()?;
+         let session = self
+@@ -181,3 +303,11 @@ impl State {
+         Ok(())
+     }
+ }
++
++const SESSION_LIST_POLL_INTERVAL: f64 = 2.0;
++const SIDEBAR_TITLE: &str = "Sessions";
++
++fn poll_session_list() {
++    let _ = get_session_list();
++    set_timeout(SESSION_LIST_POLL_INTERVAL);
++}
+diff --git a/src/pane.rs b/src/pane.rs
+index ec93d67..44c6284 100644
+--- a/src/pane.rs
++++ b/src/pane.rs
+@@ -41,12 +41,12 @@ impl Node for Pane {
+         let tab_position = tab.identifier().parse().map_err(|_| "tab identifier is not a number")?;
+         let session = tab.parent().ok_or("tab has no parent")?;
+         let session_name = session.borrow().identifier();
++        crate::utils::exit_self();
+         if session.borrow().is_focused() {
+-            focus_terminal_pane(self.pane_id.0, true);
++            focus_terminal_pane(self.pane_id.0, true, false);
+         } else {
+             switch_session_with_focus(&session_name, Some(tab_position), Some(self.pane_id));
+         }
+-        hide_self();
+         Ok(())
+     }
+     fn kill(&self) -> Result<(), String> {
+diff --git a/src/session.rs b/src/session.rs
+index edcba64..3f85511 100644
+--- a/src/session.rs
++++ b/src/session.rs
+@@ -36,15 +36,16 @@ impl Node for Session {
+     }
+     fn focus(&self) -> Result<(), String> {
+         if self.is_current_session {
+-            hide_self();
++            crate::utils::exit_self();
+             return Err("cannot goto current session".to_string());
+         }
++        // leave the sidebar before switching: exit_layout needs this session's active tab
++        crate::utils::exit_self();
+         switch_session(Some(&self.name));
+-        hide_self();
+         Ok(())
+     }
+     fn kill(&self) -> Result<(), String> {
+-        kill_sessions(&[self.name.clone()]);
++        let _ = kill_sessions(&[self.name.clone()]);
+         Ok(())
+     }
+     fn parent(&self) -> Option<Rc<RefCell<dyn Node>>> {
+diff --git a/src/sessiontree.rs b/src/sessiontree.rs
+index e948266..002580a 100644
+--- a/src/sessiontree.rs
++++ b/src/sessiontree.rs
+@@ -7,6 +7,7 @@ use crate::config::Config;
+ 
+ use std::rc::Rc;
+ use std::cell::RefCell;
++use std::collections::HashSet;
+ 
+ #[derive(Default)]
+ pub struct SessionTree {
+@@ -65,6 +66,26 @@ impl SessionTree {
+         }
+     }
+ 
++    // Rebuild the tree from a new SessionUpdate, keeping the cursor and expanded nodes
++    pub fn refresh(&mut self, sessions: Vec<SessionInfo>, config: &Config) {
++        let expanded: HashSet<String> = self.nodes.iter()
++            .filter(|node| node.borrow().is_expanded())
++            .map(node_path)
++            .collect();
++        let cursor_path = self.get_current_node().ok().map(|node| node_path(&node));
++
++        let mut refreshed = Self::new(sessions, config);
++        for node in refreshed.nodes.iter() {
++            if expanded.contains(&node_path(node)) {
++                node.borrow_mut().expand();
++            }
++        }
++        refreshed.cursor = cursor_path
++            .and_then(|path| refreshed.nodes.iter().position(|node| node_path(node) == path))
++            .unwrap_or(0) as i32;
++        *self = refreshed;
++    }
++
+     pub fn get_current_node(&self) -> Result<Rc<RefCell<dyn Node>>, String> {
+         let node = self.nodes.get(self.cursor as usize).ok_or("cursor out of range")?;
+         Ok(node.clone())
+@@ -201,6 +222,7 @@ impl SessionTree {
+     pub fn render(&mut self, rows: usize, _cols: usize) {
+         let mut keybind_generator = KeybindGenerator::new();
+         let mut lines = Vec::new();
++        self.quick_find.clear();
+         for (i, node) in self.nodes.iter().enumerate().filter(|(_, node)| node.borrow().is_shown()) {
+             let text = node.borrow().render(keybind_generator.next(), i == self.cursor as usize);
+             lines.push(text);
+@@ -210,3 +232,14 @@ impl SessionTree {
+         print_nested_list(lines.into_iter().skip(from).take(rows).collect());
+     }
+ }
++
++fn node_path(node: &Rc<RefCell<dyn Node>>) -> String {
++    let mut parts = vec![node.borrow().identifier()];
++    let mut current = node.borrow().parent();
++    while let Some(parent) = current {
++        parts.push(parent.borrow().identifier());
++        current = parent.borrow().parent();
++    }
++    parts.reverse();
++    parts.join("/")
++}
+diff --git a/src/tab.rs b/src/tab.rs
+index 5bcec17..b48f633 100644
+--- a/src/tab.rs
++++ b/src/tab.rs
+@@ -42,12 +42,12 @@ impl Node for Tab {
+     }
+     fn focus(&self) -> Result<(), String> {
+         let session = self.session.borrow();
++        crate::utils::exit_self();
+         if session.is_focused() {
+             focus_or_create_tab(self.name.as_str());
+         } else {
+             switch_session_with_focus(&session.identifier(), Some(self.position), None);
+         }
+-        hide_self();
+         Ok(())
+     }
+     fn kill(&self) -> Result<(), String> {
+diff --git a/src/utils.rs b/src/utils.rs
+index 5ce6308..4d451cf 100644
+--- a/src/utils.rs
++++ b/src/utils.rs
+@@ -1,3 +1,39 @@
++use std::collections::BTreeMap;
++use std::sync::OnceLock;
++use zellij_tile::prelude::{close_self, hide_self, override_layout, LayoutInfo, LayoutMetadata};
++
++#[derive(Default)]
++struct ExitBehaviour {
++    close_on_exit: bool,
++    exit_layout: Option<String>,
++}
++
++static EXIT_BEHAVIOUR: OnceLock<ExitBehaviour> = OnceLock::new();
++
++pub fn set_exit_behaviour(close_on_exit: bool, exit_layout: Option<String>) {
++    let _ = EXIT_BEHAVIOUR.set(ExitBehaviour { close_on_exit, exit_layout });
++}
++
++// Leave the plugin pane according to `exit_layout` / `close_on_exit`:
++// - exit_layout: re-apply that layout to the tab (this plugin pane is dropped by it)
++// - close_on_exit: close the plugin pane
++// - otherwise: hide it (upstream behaviour)
++pub fn exit_self() {
++    let behaviour = EXIT_BEHAVIOUR.get_or_init(ExitBehaviour::default);
++    if let Some(layout) = &behaviour.exit_layout {
++        apply_layout(layout);
++    } else if behaviour.close_on_exit {
++        close_self();
++    } else {
++        hide_self();
++    }
++}
++
++// Re-apply a layout from the layout dir to the active tab, keeping its terminal panes
++pub fn apply_layout(layout: &str) {
++    override_layout(LayoutInfo::File(layout.to_string(), LayoutMetadata::default()), true, false, true, BTreeMap::new());
++}
++
+ pub struct IdGenerator {
+     id: usize,
+ }

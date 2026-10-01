@@ -1,0 +1,20 @@
+// セッション管理サイドバー (zellij-choose-tree) を左に出したレイアウト
+// config.kdl の Alt s から OverrideLayout で現在のタブに適用する
+// サイドバーで Esc / 選択すると exit_layout の default レイアウトに戻る (default.swap.kdl も復帰)
+// プラグインは installer/zellij-choose-tree.bash でビルドしたパッチ版を使う
+layout {
+    pane size=1 borderless=true {
+        plugin location="tab-bar"
+    }
+    pane split_direction="vertical" {
+        pane size="25%" focus=true {
+            plugin location="file:~/.config/zellij/plugins/zellij-choose-tree.wasm" {
+                exit_layout "default"
+            }
+        }
+        pane
+    }
+    pane size=1 borderless=true {
+        plugin location="status-bar"
+    }
+}
