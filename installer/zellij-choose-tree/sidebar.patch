@@ -32,7 +32,7 @@ index 3724c6b..af06633 100644
      }
  }
 diff --git a/src/main.rs b/src/main.rs
-index 744f1e0..4f24ce8 100644
+index 744f1e0..d4dd62b 100644
 --- a/src/main.rs
 +++ b/src/main.rs
 @@ -18,6 +18,11 @@ struct State {
@@ -55,7 +55,7 @@ index 744f1e0..4f24ce8 100644
          request_permission(&[
              PermissionType::ChangeApplicationState,
              PermissionType::MessageAndLaunchOtherPlugins,
-@@ -33,21 +39,66 @@ impl ZellijPlugin for State {
+@@ -33,21 +39,68 @@ impl ZellijPlugin for State {
              PermissionType::ReadCliPipes,
              PermissionType::RunCommands,
          ]);
@@ -97,6 +97,8 @@ index 744f1e0..4f24ce8 100644
 +            Event::PaneUpdate(panes) => {
 +                self.panes = panes;
 +            }
++            // controller: no UI, don't keep a session tree
++            Event::SessionUpdate(..) if self.config.sidebar_layout.is_some() => {}
              Event::SessionUpdate(sessions, _) => {
                  if !self.initialised {
                      self.session_tree = SessionTree::new(sessions, &self.config);
@@ -124,7 +126,7 @@ index 744f1e0..4f24ce8 100644
                      // Select the node under the cursor
                      KeyWithModifier {
                          bare_key: BareKey::Enter,
-@@ -120,7 +171,7 @@ impl ZellijPlugin for State {
+@@ -120,7 +173,7 @@ impl ZellijPlugin for State {
                          bare_key: BareKey::Esc,
                          key_modifiers: _,
                      } => {
@@ -133,7 +135,7 @@ index 744f1e0..4f24ce8 100644
                      }
                      _ => (),
                  }
-@@ -131,6 +182,17 @@ impl ZellijPlugin for State {
+@@ -131,6 +184,17 @@ impl ZellijPlugin for State {
      }
  
      fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
@@ -151,7 +153,7 @@ index 744f1e0..4f24ce8 100644
          if pipe_message.is_private && pipe_message.name == "sessionpicker" {
              if let PipeSource::Cli(pipe_id) = &pipe_message.source {
                  self.debug = format!("Received sessionpicker request from cli pipe {}", pipe_id);
-@@ -144,7 +206,10 @@ impl ZellijPlugin for State {
+@@ -144,7 +208,10 @@ impl ZellijPlugin for State {
      }
  
      fn render(&mut self, rows: usize, cols: usize) {
@@ -163,7 +165,7 @@ index 744f1e0..4f24ce8 100644
          if !self.debug.is_empty() {
              println!("{}", self.debug);
              println!();
-@@ -154,6 +219,63 @@ impl ZellijPlugin for State {
+@@ -154,6 +221,63 @@ impl ZellijPlugin for State {
  }
  
  impl State {
@@ -227,7 +229,7 @@ index 744f1e0..4f24ce8 100644
      fn handle_sessionpick_request(&mut self) -> Result<(), String> {
          let current_node = self.session_tree.get_current_node()?;
          let session = self
-@@ -181,3 +303,11 @@ impl State {
+@@ -181,3 +305,11 @@ impl State {
          Ok(())
      }
  }
@@ -240,10 +242,42 @@ index 744f1e0..4f24ce8 100644
 +    set_timeout(SESSION_LIST_POLL_INTERVAL);
 +}
 diff --git a/src/pane.rs b/src/pane.rs
-index ec93d67..44c6284 100644
+index ec93d67..b644dec 100644
 --- a/src/pane.rs
 +++ b/src/pane.rs
-@@ -41,12 +41,12 @@ impl Node for Pane {
+@@ -1,5 +1,5 @@
+ use zellij_tile::prelude::*;
+-use std::rc::Rc;
++use std::rc::{Rc, Weak};
+ use std::cell::RefCell;
+ 
+ use crate::sessiontree::Node;
+@@ -9,7 +9,8 @@ pub struct Pane {
+     title: String,
+     is_focused: bool,
+     pane_id: (u32, bool), //(id, is_plugin)
+-    tab: Rc<RefCell<dyn Node>>,
++    // Weak: the tab owns its panes, a strong back reference would leak the tree
++    tab: Weak<RefCell<dyn Node>>,
+     shown: bool,
+ }
+ 
+@@ -20,7 +21,7 @@ impl Pane {
+             title,
+             is_focused,
+             pane_id,
+-            tab: tab.clone(),
++            tab: Rc::downgrade(&tab),
+             shown: false,
+         }
+     }
+@@ -37,23 +38,24 @@ impl Node for Pane {
+         self.is_focused
+     }
+     fn focus(&self) -> Result<(), String> {
+-        let tab = self.tab.borrow();
++        let tab = self.tab.upgrade().ok_or("pane has no parent")?;
++        let tab = tab.borrow();
          let tab_position = tab.identifier().parse().map_err(|_| "tab identifier is not a number")?;
          let session = tab.parent().ok_or("tab has no parent")?;
          let session_name = session.borrow().identifier();
@@ -258,6 +292,14 @@ index ec93d67..44c6284 100644
          Ok(())
      }
      fn kill(&self) -> Result<(), String> {
+         Err("cannot kill pane".to_string())
+     }
+     fn parent(&self) -> Option<Rc<RefCell<dyn Node>>> {
+-        Some(self.tab.clone())
++        self.tab.upgrade()
+     }
+     fn add_child(&mut self, _child: Rc<RefCell<dyn Node>>) {
+     }
 diff --git a/src/session.rs b/src/session.rs
 index edcba64..3f85511 100644
 --- a/src/session.rs
@@ -345,13 +387,42 @@ index e948266..002580a 100644
 +    parts.join("/")
 +}
 diff --git a/src/tab.rs b/src/tab.rs
-index 5bcec17..b48f633 100644
+index 5bcec17..163fe25 100644
 --- a/src/tab.rs
 +++ b/src/tab.rs
-@@ -42,12 +42,12 @@ impl Node for Tab {
+@@ -1,5 +1,5 @@
+ use zellij_tile::prelude::*;
+-use std::rc::Rc;
++use std::rc::{Rc, Weak};
+ use std::cell::RefCell;
+ 
+ use crate::sessiontree::Node;
+@@ -9,7 +9,8 @@ pub struct Tab {
+     name: String,
+     position: usize,
+     active: bool,
+-    session: Rc<RefCell<dyn Node>>,
++    // Weak: the session owns its tabs, a strong back reference would leak the tree
++    session: Weak<RefCell<dyn Node>>,
+     panes: Vec<Rc<RefCell<dyn Node>>>,
+     shown: bool,
+     is_expanded: bool,
+@@ -22,7 +23,7 @@ impl Tab {
+             name,
+             position,
+             active,
+-            session: session.clone(),
++            session: Rc::downgrade(&session),
+             panes: Vec::new(),
+             shown: false,
+             is_expanded: false,
+@@ -41,20 +42,21 @@ impl Node for Tab {
+         self.active
      }
      fn focus(&self) -> Result<(), String> {
-         let session = self.session.borrow();
+-        let session = self.session.borrow();
++        let session = self.session.upgrade().ok_or("tab has no parent")?;
++        let session = session.borrow();
 +        crate::utils::exit_self();
          if session.is_focused() {
              focus_or_create_tab(self.name.as_str());
@@ -362,6 +433,14 @@ index 5bcec17..b48f633 100644
          Ok(())
      }
      fn kill(&self) -> Result<(), String> {
+         Err("cannot kill tab".to_string())
+     }
+     fn parent(&self) -> Option<Rc<RefCell<dyn Node>>> {
+-        Some(self.session.clone())
++        self.session.upgrade()
+     }
+     fn add_child(&mut self, child: Rc<RefCell<dyn Node>>) {
+         self.panes.push(child);
 diff --git a/src/utils.rs b/src/utils.rs
 index 5ce6308..4d451cf 100644
 --- a/src/utils.rs
