@@ -138,14 +138,15 @@ keybinds clear-defaults=true {
         }
     }
     shared_except "locked" {
-        // セッション管理サイドバー (layouts/sidebar.kdl) の表示 / 非表示
+        // セッション管理サイドバーの表示 / 非表示
         // load_plugins で常駐させた choose-tree (コントローラ) にメッセージを送り,
-        // アクティブタブにサイドバーがあれば閉じ, なければ sidebar レイアウトを適用させる
+        // アクティブタブにサイドバーがあれば閉じ, なければ左端にフローティングで開かせる
+        // (フローティングなのでタブのペイン配置は崩れない)
         bind "Alt s" {
             MessagePlugin "file:~/.config/zellij/plugins/zellij-choose-tree.wasm" {
                 name "toggle_sidebar"
                 floating true
-                sidebar_layout "sidebar"
+                sidebar_plugin "file:~/.config/zellij/plugins/zellij-choose-tree.wasm"
             }
         }
         bind "Alt left" { MoveFocusOrTab "left"; }
@@ -292,7 +293,7 @@ plugins {
 load_plugins {
     // サイドバー開閉用コントローラ (Alt s の MessagePlugin と設定を一致させること)
     "file:~/.config/zellij/plugins/zellij-choose-tree.wasm" {
-        sidebar_layout "sidebar"
+        sidebar_plugin "file:~/.config/zellij/plugins/zellij-choose-tree.wasm"
     }
 }
 web_client {
