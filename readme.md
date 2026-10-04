@@ -63,6 +63,15 @@ Opus 5.5 │ ~/soft/zshdotfiles (main) │ █████░░░░░ 57% (1
 本体は `dotfiles/.claude/statusline.sh` (2_link_dotfiles.bashで `~/.claude/statusline.sh` にリンク)，
 `~/.claude/settings.json` への登録は `installer/claude-statusline.bash` が行う．
 
+AppImage / 実行ファイル / shスクリプトのデスクトップエントリ作成 (Superキーの検索に出る)
+```
+mkapp add <file>     対話的に作成 (各項目を推測値入りで編集, AppImageは中の.desktopとアイコンを自動抽出)
+mkapp list           mkappで作成したエントリの一覧 (参照先が消えていれば MISSING)
+mkapp remove [id]    エントリとアイコンを削除 (省略時はfzfで複数選択, 本体ファイルは消さない)
+```
+エントリは `~/.local/share/applications/mkapp-<id>.desktop`，アイコンは `~/.local/share/icons/mkapp/` に置かれる．
+本体ファイルはその場の絶対パスで参照するので，移動したら作り直す．Electron系でサンドボックスエラーが出るなら Arguments に `--no-sandbox` を入れる．
+
 ## install
 
 ```

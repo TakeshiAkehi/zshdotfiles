@@ -6,6 +6,7 @@ WDIR=${CDIR}/addon
 source ${WDIR}/zsh_conf.zsh
 source ${WDIR}/zinit_conf.zsh
 source ${WDIR}/tui.zsh
+source ${WDIR}/mkapp.zsh
 # source ${WDIR}/gnu_commands.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 source <(fzf --zsh)
