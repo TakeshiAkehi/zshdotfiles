@@ -85,6 +85,20 @@ j() {
     zellij delete-all-sessions -y 2>/dev/null
 }
 
+# SSH経由(スマホ等)で接続中のzellijクライアントをデタッチする
+## zellijは最小クライアントのサイズに合わせるため、残った接続でレイアウトが縮むのを解消する
+jd() {
+    local pid args found=0
+    for pid in $(pgrep -u "$USER" -x zellij); do
+        args=$(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null)
+        [[ "$args" == *--server* ]] && continue
+        tr '\0' '\n' < /proc/$pid/environ 2>/dev/null | grep -q '^SSH_CONNECTION=' || continue
+        echo "detach: pid=$pid ($args)"
+        kill -HUP "$pid" && found=1
+    done
+    (( found )) || echo "No SSH-attached zellij clients."
+}
+
 # Git Worktree Manager
 gwt() {
     local subcmd="${1:-help}"
