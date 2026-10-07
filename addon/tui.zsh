@@ -87,7 +87,7 @@ j() {
 
 # SSH経由(スマホ等)で接続中のzellijクライアントをデタッチする
 ## zellijは最小クライアントのサイズに合わせるため、残った接続でレイアウトが縮むのを解消する
-jd() {
+jj() {
     local pid args found=0
     for pid in $(pgrep -u "$USER" -x zellij); do
         args=$(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null)
